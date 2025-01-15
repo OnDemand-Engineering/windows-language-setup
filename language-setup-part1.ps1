@@ -114,91 +114,74 @@ begin {
     $osName = (Get-ComputerInfo).OsName
     $os = if ($osName -match "Server \d+") {
         $matches[0].Replace(" ", "_").tolower()
+        $type = "Server"
+    }
+    elseif ($osName -match "Windows \d+") {
+        $matches[0].Replace(" ", "_").tolower()
+        $type = $Client
     }
     else {
         $osName
     }
     $gitlab_root = "https://gitlab.com/ondemand-engineering"
-    $languagePackUri = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os/Microsoft-Windows-Server-Language-Pack_x64_$($primaryLanguage.tolower()).cab"
+    $languagePackUri = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os/Microsoft-Windows-$type-Language-Pack_x64_$($primaryLanguage.tolower()).cab"
 }
 
 process {
-    # Windows Server Language Pack Install
-    if ($osName -like "*Microsoft Windows Server*") {
-        foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
+    foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
 
-            # Download Language Pack
-            try {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading Language Pack" -Severity Information -LogPath $logPath
-                Start-BitsTransfer -Source $languagePackUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded Language Pack" -Severity Information -LogPath $logPath
-                $languagePack = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
-                Unblock-File -Path $languagePack.FullName -ErrorAction SilentlyContinue
+        # Download Language Pack
+        try {
+            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading Language Pack" -Severity Information -LogPath $logPath
+            Start-BitsTransfer -Source $languagePackUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
+            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded Language Pack" -Severity Information -LogPath $logPath
+            $languagePack = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
+            Unblock-File -Path $languagePack.FullName -ErrorAction SilentlyContinue
+        }
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
             }
-            catch {
-                $errorMessage = $_.Exception.Message
-                if ($Null -eq $errorMessage) {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
-                }
-                else {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-                }
-            }
-
-            # Install Language Pack
-            Try {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
-                Add-WindowsPackage -Online -PackagePath $languagePack.FullName -NoRestart
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed Language Pack" -Severity Information -LogPath $logPath
-            }
-            Catch {
-                $errorMessage = $_.Exception.Message
-                if ($Null -eq $errorMessage) {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install Language Pack: $_" -Severity Error -LogPath $logPath
-                }
-                else {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-                }
-            }
-
-            # Remove Languae Pack
-            $languagePack | Remove-Item -Force
-
-            # Install Windows Capability
-            while ($null -ne ($capabilities = Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.State -ne "Installed" })) {
-                foreach ($capability in $capabilities) {
-                    try {
-                        Add-WindowsCapability -Online -Name $capability.Name
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $($capability.Name)" -Severity Information -LogPath $logPath
-                    }
-                    catch {
-                        $errorMessage = $_.Exception.Message
-                        if ($Null -eq $errorMessage) {
-                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $($capability.Name)" -Severity Error -LogPath $logPath
-                        }
-                        else {
-                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-                        }
-                    }
-                }
+            else {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
             }
         }
-    }
-    # Windows Client OS Language Install
-    else {
-        # Install language packs for non US
-        foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
-            try {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
-                Install-Language -Language $lang
+
+        # Install Language Pack
+        Try {
+            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
+            Add-WindowsPackage -Online -PackagePath $languagePack.FullName -NoRestart
+            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed Language Pack" -Severity Information -LogPath $logPath
+        }
+        Catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install Language Pack: $_" -Severity Error -LogPath $logPath
             }
-            catch {
-                $errorMessage = $_.Exception.Message
-                if ($Null -eq $errorMessage) {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install Language Pack: $_" -Severity Error -LogPath $logPath
+            else {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+            }
+        }
+
+        # Remove Language Pack
+        $languagePack | Remove-Item -Force
+
+        # Install Windows Capability
+        while ($null -ne ($capabilities = Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.State -ne "Installed" })) {
+            foreach ($capability in $capabilities) {
+                try {
+                    Add-WindowsCapability -Online -Name $capability.Name
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $($capability.Name)" -Severity Information -LogPath $logPath
                 }
-                else {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                catch {
+                    $errorMessage = $_.Exception.Message
+                    if ($Null -eq $errorMessage) {
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $($capability.Name)" -Severity Error -LogPath $logPath
+                    }
+                    else {
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                    }
                 }
             }
         }
