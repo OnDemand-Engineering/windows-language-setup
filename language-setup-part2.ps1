@@ -4,11 +4,11 @@
 #>
 
 Param (
-    [Parameter(Mandatory = $true, HelpMessage = 'Primary Language')]
+    [Parameter(Mandatory = $false, HelpMessage = 'Primary Language')]
     [ValidateNotNullorEmpty()]
     [string] $primaryLanguage = "en-GB",
 
-    [Parameter(Mandatory = $true, HelpMessage = 'Secondary Language')]
+    [Parameter(Mandatory = $false, HelpMessage = 'Secondary Language')]
     [ValidateNotNullOrEmpty()]
     [String] $secondaryLanguage = "en-US"
 )
