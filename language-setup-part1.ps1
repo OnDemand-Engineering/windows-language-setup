@@ -124,7 +124,7 @@ begin {
         $osName
     }
     $gitlab_root = "https://gitlab.com/ondemand-engineering"
-    $repo_root = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os/"
+    $repo_root = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os"
 }
 
 process {
@@ -166,7 +166,7 @@ process {
             }
         }
 
-        # Remove Language Pack
+        # Remove Language Pack file
         $languagePack | Remove-Item -Force
 
         if (($os -ne "server_2016") -or ($os -ne "server_2019")) {
@@ -212,6 +212,9 @@ process {
                         Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
                     }
                 }
+
+                # Remove Windows Capability file
+                $file | Remove-Item -Force
             }
         }
     }
