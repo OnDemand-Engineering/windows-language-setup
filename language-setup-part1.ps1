@@ -118,17 +118,19 @@ begin {
     }
     elseif ($osName -match "Windows \d+") {
         $matches[0].Replace(" ", "_").tolower()
-        $type = $Client
+        $type = "Client"
     }
     else {
         $osName
     }
     $gitlab_root = "https://gitlab.com/ondemand-engineering"
-    $languagePackUri = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os/Microsoft-Windows-$type-Language-Pack_x64_$($primaryLanguage.tolower()).cab"
+    $repo_root = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os/"
 }
 
 process {
     foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
+
+        $languagePackUri = "$repo_root/Microsoft-Windows-$type-Language-Pack_x64_$($lang.toLower()).cab"
 
         # Download Language Pack
         try {
@@ -167,17 +169,44 @@ process {
         # Remove Language Pack
         $languagePack | Remove-Item -Force
 
-        # Install Windows Capability
-        while ($null -ne ($capabilities = Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.State -ne "Installed" })) {
+        if (($os -ne "server_2016") -or ($os -ne "server_2019")) {
+            $capabilities = @(
+                "Microsoft-Windows-LanguageFeatures-Basic-$($lang.toLower())-Package~31bf3856ad364e35~amd64~~.cab",
+                "Microsoft-Windows-LanguageFeatures-Handwriting-$($lang.toLower())-Package~31bf3856ad364e35~amd64~~.cab",
+                "Microsoft-Windows-LanguageFeatures-OCR-$($lang.toLower())-Package~31bf3856ad364e35~amd64~~.cab",
+                "Microsoft-Windows-LanguageFeatures-Speech-$($lang.toLower())-Package~31bf3856ad364e35~amd64~~.cab",
+                "Microsoft-Windows-LanguageFeatures-TextToSpeech-$($lang.toLower())-Package~31bf3856ad364e35~amd64~~.cab"
+            )
+
             foreach ($capability in $capabilities) {
+                # Download Windows Capability
+                $capabilityUri = "$repo_root/$capability"
                 try {
-                    Add-WindowsCapability -Online -Name $capability.Name
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $($capability.Name)" -Severity Information -LogPath $logPath
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading $capability" -Severity Information -LogPath $logPath
+                    Start-BitsTransfer -Source $capabilityUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded $capability" -Severity Information -LogPath $logPath
+                    $file = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
+                    Unblock-File -Path $file.FullName -ErrorAction SilentlyContinue
                 }
                 catch {
                     $errorMessage = $_.Exception.Message
                     if ($Null -eq $errorMessage) {
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $($capability.Name)" -Severity Error -LogPath $logPath
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
+                    }
+                    else {
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                    }
+                }
+
+                # Install Windows Capability
+                try {
+                    Add-WindowsPackage -Online -PackagePath $file.FullName -NoRestart
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $capability" -Severity Information -LogPath $logPath
+                }
+                catch {
+                    $errorMessage = $_.Exception.Message
+                    if ($Null -eq $errorMessage) {
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $capability" -Severity Error -LogPath $logPath
                     }
                     else {
                         Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
