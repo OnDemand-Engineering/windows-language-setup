@@ -133,91 +133,111 @@ begin {
             TimeZone  = "Central European Summer Time"
         }
     }
+
+    $changes_made = $false
+    $reboot = $false
 }
 
 process {
     # Set languages/culture
-    try {
-        Set-Culture -CultureInfo $primaryLanguage
-        Write-Log -Object "LanguageSetup_Part2" -Message "Set Culture to $primaryLanguage" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set Culture to $primaryLanguage" -Severity Error -LogPath $logPath
+    if ((Get-Culture).Name -ne $primaryLanguage) {
+        try {
+            Set-Culture -CultureInfo $primaryLanguage
+            Write-Log -Object "LanguageSetup_Part2" -Message "Set Culture to $primaryLanguage" -Severity Information -LogPath $logPath
+            $changes_made = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set Culture to $primaryLanguage" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 
     # Set UI Language
-    try {
-        Set-WinUILanguageOverride -Language $primaryLanguage
-        Write-Log -Object "LanguageSetup_Part2" -Message "Set UI Language to $primaryLanguage" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set UI Language to $primaryLanguage" -Severity Error -LogPath $logPath
+    if ((Get-WinUILanguageOverride).Name -ne $primaryLanguage) {
+        try {
+            Set-WinUILanguageOverride -Language $primaryLanguage
+            Write-Log -Object "LanguageSetup_Part2" -Message "Set UI Language to $primaryLanguage" -Severity Information -LogPath $logPath
+            $changes_made = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set UI Language to $primaryLanguage" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 
     # Set Location
-    try {
-        Set-WinHomeLocation -GeoId $languageProperties[$primaryLanguage].GeoID
-        Write-Log -Object "LanguageSetup_Part2" -Message "Set Windows Home Location to $($languageProperties[$primaryLanguage].GeoID)" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set Windows Home Location to $($languageProperties[$primaryLanguage].GeoID)" -Severity Error -LogPath $logPath
+    if ((Get-WinHomeLocation).GeoID -ne $languageProperties[$primaryLanguage].GeoID) {
+        try {
+            Set-WinHomeLocation -GeoId $languageProperties[$primaryLanguage].GeoID
+            Write-Log -Object "LanguageSetup_Part2" -Message "Set Windows Home Location to $($languageProperties[$primaryLanguage].GeoID)" -Severity Information -LogPath $logPath
+            $changes_made = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set Windows Home Location to $($languageProperties[$primaryLanguage].GeoID)" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 
     # Set Input Method
-    try {
-        $newLanguageList = New-WinUserLanguageList -Language "$primaryLanguage"
-        $newLanguageList.Add([Microsoft.InternationalSettings.Commands.WinUserLanguage]::new("$secondaryLanguage"))
-        $newLanguageList[1].InputMethodTips.Clear()
-        $newLanguageList[1].InputMethodTips.Add("$($languageProperties[$primaryLanguage].InputCode)")
-        $newLanguageList[1].InputMethodTips.Add("$($languageProperties[$secondaryLanguage].InputCode)")
-        Set-WinUserLanguageList -LanguageList $newLanguageList -Force
-        Write-Log -Object "LanguageSetup_Part2" -Message "Set User Language List" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set User Language List" -Severity Error -LogPath $logPath
+    if ((Get-WinUserLanguageList)[0].LanguageTag -ne $primaryLanguage) {
+        try {
+            $newLanguageList = New-WinUserLanguageList -Language "$primaryLanguage"
+            $newLanguageList.Add([Microsoft.InternationalSettings.Commands.WinUserLanguage]::new("$secondaryLanguage"))
+            $newLanguageList[1].InputMethodTips.Clear()
+            $newLanguageList[1].InputMethodTips.Add("$($languageProperties[$primaryLanguage].InputCode)")
+            $newLanguageList[1].InputMethodTips.Add("$($languageProperties[$secondaryLanguage].InputCode)")
+            Set-WinUserLanguageList -LanguageList $newLanguageList -Force
+            Write-Log -Object "LanguageSetup_Part2" -Message "Set User Language List" -Severity Information -LogPath $logPath
+            $changes_made = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set User Language List" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 
     # Set Timezone
-    try {
-        Set-TimeZone -Name $languageProperties[$primaryLanguage].TimeZone
-        Write-Log -Object "LanguageSetup_Part2" -Message "Set TimeZone to $($languageProperties[$primaryLanguage].TimeZone)" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set TimeZone to $($languageProperties[$primaryLanguage].TimeZone)" -Severity Error -LogPath $logPath
+    if ((Get-TimeZone).Name -ne $languageProperties[$primaryLanguage].TimeZone) {
+        try {
+            Set-TimeZone -Name $languageProperties[$primaryLanguage].TimeZone
+            Write-Log -Object "LanguageSetup_Part2" -Message "Set TimeZone to $($languageProperties[$primaryLanguage].TimeZone)" -Severity Information -LogPath $logPath
+            $changes_made = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to set TimeZone to $($languageProperties[$primaryLanguage].TimeZone)" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 
-    # Create XML Content
-    $XML = @"
+    if ($changes_made) {
+
+        # Create XML Content
+        $XML = @"
 <gs:GlobalizationServices xmlns:gs="urn:longhornGlobalizationUnattend">
 
 <!-- user list -->
@@ -251,29 +271,33 @@ process {
 </gs:GlobalizationServices>
 "@
 
-    # Create XML
-    $file = New-Item -Path "$env:SYSTEMROOT\Temp\" -Name "$primaryLanguage.xml" -ItemType File -Value $XML -Force
+        # Create XML
+        $file = New-Item -Path "$env:SYSTEMROOT\Temp\" -Name "$primaryLanguage.xml" -ItemType File -Value $XML -Force
 
-    # Copy to System and welcome screen
-    try {
-        Start-Process -FilePath "$env:SYSTEMROOT\System32\Control.exe" -ArgumentList "intl.cpl, , /f:""$($file.Fullname)""" -NoNewWindow -PassThru -Wait | Out-Null
-        Write-Log -Object "LanguageSetup_Part2" -Message "Copied settings to System, Welcome Screen and New Users" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part2" -Message "Failed to copy settings to System, Welcome Screen and New Users" -Severity Error -LogPath $logPath
+        # Copy to System and welcome screen
+        try {
+            Start-Process -FilePath "$env:SYSTEMROOT\System32\Control.exe" -ArgumentList "intl.cpl, , /f:""$($file.Fullname)""" -NoNewWindow -PassThru -Wait | Out-Null
+            Write-Log -Object "LanguageSetup_Part2" -Message "Copied settings to System, Welcome Screen and New Users" -Severity Information -LogPath $logPath
+            $reboot = $true
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part2" -Message "Failed to copy settings to System, Welcome Screen and New Users" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part2" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
-    }
 
-    # Remove XML
-    $file | Remove-Item -Force
+        # Remove XML
+        $file | Remove-Item -Force
+    }
 }
 
 end {
     # Restart Computer
-    Restart-Computer -Force
+    if ($reboot) {
+        Restart-Computer -Force
+    }
 }

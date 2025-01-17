@@ -125,49 +125,57 @@ begin {
     }
     $gitlab_root = "https://gitlab.com/ondemand-engineering"
     $repo_root = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os"
+
+    $reboot = $false
 }
 
 process {
     foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
 
-        $languagePackUri = "$repo_root/Microsoft-Windows-$type-Language-Pack_x64_$($lang.toLower()).cab"
+        if (!(Get-WindowsPackage -Online | Where-Object { $_.ReleaseType -eq "LanguagePack" -and $_.PackageName -like "*LanguagePack*$lang*" })) {
 
-        # Download Language Pack
-        try {
-            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading Language Pack" -Severity Information -LogPath $logPath
-            Start-BitsTransfer -Source $languagePackUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
-            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded Language Pack" -Severity Information -LogPath $logPath
-            $languagePack = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
-            Unblock-File -Path $languagePack.FullName -ErrorAction SilentlyContinue
-        }
-        catch {
-            $errorMessage = $_.Exception.Message
-            if ($Null -eq $errorMessage) {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
+            $languagePackUri = "$repo_root/Microsoft-Windows-$type-Language-Pack_x64_$($lang.toLower()).cab"
+
+            # Download Language Pack
+            try {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading Language Pack" -Severity Information -LogPath $logPath
+                Start-BitsTransfer -Source $languagePackUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded Language Pack" -Severity Information -LogPath $logPath
+                $languagePack = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $languagePackUri -Leaf)"
+                Unblock-File -Path $languagePack.FullName -ErrorAction SilentlyContinue
             }
-            else {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+            catch {
+                $errorMessage = $_.Exception.Message
+                if ($Null -eq $errorMessage) {
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
+                }
+                else {
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                }
             }
+
+            # Install Language Pack
+            Try {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
+                Add-WindowsPackage -Online -PackagePath $languagePack.FullName -NoRestart
+                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed Language Pack" -Severity Information -LogPath $logPath
+                $reboot = $true
+            }
+            Catch {
+                $errorMessage = $_.Exception.Message
+                if ($Null -eq $errorMessage) {
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install Language Pack: $_" -Severity Error -LogPath $logPath
+                }
+                else {
+                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                }
+            }
+
+            # Remove Language Pack file
+            $languagePack | Remove-Item -Force
         }
 
-        # Install Language Pack
-        Try {
-            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
-            Add-WindowsPackage -Online -PackagePath $languagePack.FullName -NoRestart
-            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed Language Pack" -Severity Information -LogPath $logPath
-        }
-        Catch {
-            $errorMessage = $_.Exception.Message
-            if ($Null -eq $errorMessage) {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install Language Pack: $_" -Severity Error -LogPath $logPath
-            }
-            else {
-                Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-            }
-        }
 
-        # Remove Language Pack file
-        $languagePack | Remove-Item -Force
 
         if (($os -ne "server_2016") -or ($os -ne "server_2019")) {
             $capabilities = @(
@@ -179,63 +187,73 @@ process {
             )
 
             foreach ($capability in $capabilities) {
-                # Download Windows Capability
-                $capabilityUri = "$repo_root/$capability"
-                try {
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading $capability" -Severity Information -LogPath $logPath
-                    Start-BitsTransfer -Source $capabilityUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded $capability" -Severity Information -LogPath $logPath
-                    $file = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
-                    Unblock-File -Path $file.FullName -ErrorAction SilentlyContinue
-                }
-                catch {
-                    $errorMessage = $_.Exception.Message
-                    if ($Null -eq $errorMessage) {
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
-                    }
-                    else {
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-                    }
-                }
 
-                # Install Windows Capability
-                try {
-                    Add-WindowsPackage -Online -PackagePath $file.FullName -NoRestart
-                    Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $capability" -Severity Information -LogPath $logPath
-                }
-                catch {
-                    $errorMessage = $_.Exception.Message
-                    if ($Null -eq $errorMessage) {
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $capability" -Severity Error -LogPath $logPath
-                    }
-                    else {
-                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
-                    }
-                }
+                if ((Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.Name -match $capability.Split("-")[3] }).State -ne "Installed") {
 
-                # Remove Windows Capability file
-                $file | Remove-Item -Force
+                    $capabilityUri = "$repo_root/$capability"
+
+                    # Download Windows Capability
+                    try {
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloading $capability" -Severity Information -LogPath $logPath
+                        Start-BitsTransfer -Source $capabilityUri -Destination "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Downloaded $capability" -Severity Information -LogPath $logPath
+                        $file = Get-Item -Path "$env:SYSTEMROOT\Temp\$(Split-Path $capabilityUri -Leaf)"
+                        Unblock-File -Path $file.FullName -ErrorAction SilentlyContinue
+                    }
+                    catch {
+                        $errorMessage = $_.Exception.Message
+                        if ($Null -eq $errorMessage) {
+                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to Download Language Pack: $_" -Severity Error -LogPath $logPath
+                        }
+                        else {
+                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                        }
+                    }
+
+                    # Install Windows Capability
+                    try {
+                        Add-WindowsPackage -Online -PackagePath $file.FullName -NoRestart
+                        Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $capability" -Severity Information -LogPath $logPath
+                        $reboot = $true
+                    }
+                    catch {
+                        $errorMessage = $_.Exception.Message
+                        if ($Null -eq $errorMessage) {
+                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Failed to install $capability" -Severity Error -LogPath $logPath
+                        }
+                        else {
+                            Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): $errorMessage" -Severity Error -LogPath $logPath
+                        }
+                    }
+
+                    # Remove Windows Capability file
+                    $file | Remove-Item -Force
+                }
             }
         }
     }
 
     # Set System Language
-    try {
-        Set-WinSystemLocale -SystemLocale $primaryLanguage
-        Write-Log -Object "LanguageSetup_Part1" -Message "Set System Locale to $primaryLanguage" -Severity Information -LogPath $logPath
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($Null -eq $errorMessage) {
-            Write-Log -Object "LanguageSetup_Part1" -Message "Failed to set System Locale to $primaryLanguage" -Severity Error -LogPath $logPath
+    if ((Get-WinSystemLocale).Name -ne $primaryLanguage) {
+        try {
+            Set-WinSystemLocale -SystemLocale $primaryLanguage
+            Write-Log -Object "LanguageSetup_Part1" -Message "Set System Locale to $primaryLanguage" -Severity Information -LogPath $logPath
         }
-        else {
-            Write-Log -Object "LanguageSetup_Part1" -Message "$errorMessage" -Severity Error -LogPath $logPath
+        catch {
+            $errorMessage = $_.Exception.Message
+            if ($Null -eq $errorMessage) {
+                Write-Log -Object "LanguageSetup_Part1" -Message "Failed to set System Locale to $primaryLanguage" -Severity Error -LogPath $logPath
+            }
+            else {
+                Write-Log -Object "LanguageSetup_Part1" -Message "$errorMessage" -Severity Error -LogPath $logPath
+            }
         }
     }
 }
 
 end {
     # Restart Computer
-    Restart-Computer -Force
+    if ($reboot) {
+        Restart-Computer -Force
+    }
 }
