@@ -1,3 +1,9 @@
+## v0.2.1 (2025-02-28)
+
+### Fix
+
+- update bumpversion workflow to prepend 'v' to tag names (#2)
+
 ## v0.2.0 (2025-02-27)
 
 ### Feat
