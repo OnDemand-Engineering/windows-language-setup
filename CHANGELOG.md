@@ -1,3 +1,9 @@
+## v0.2.3 (2025-03-04)
+
+### Fix
+
+- remove unnecessary blank lines and correct variable assignment in language setup script (#5)
+
 ## v0.2.2 (2025-03-04)
 
 ### Fix
