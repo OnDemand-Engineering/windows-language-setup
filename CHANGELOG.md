@@ -1,3 +1,9 @@
+## v0.2.2 (2025-03-04)
+
+### Fix
+
+- update language pack repository URL and disable cleanup tasks (#3)
+
 ## v0.2.1 (2025-02-28)
 
 ### Fix
