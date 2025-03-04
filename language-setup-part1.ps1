@@ -123,13 +123,21 @@ begin {
     else {
         $osName
     }
-    $gitlab_root = "https://gitlab.com/ondemand-engineering"
-    $repo_root = "$gitlab_root/windows/windows-language-setup/-/raw/main/language_packs/$os"
+    $gitlab_root = "https://raw.githubusercontent.com/ondemand-engineering"
+    $repo_root = "$gitlab_root/windows-language-setup/refs/heads/main/language_packs/$os"
 
     $reboot = $false
+
+
 }
 
 process {
+    # Disable Language Pack Cleanup
+    Disable-ScheduledTask -TaskPath "\Microsoft\Windows\AppxDeploymentClient\" -TaskName "Pre-staged app cleanup"
+    Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MUI\" -TaskName "LPRemove"
+    Disable-ScheduledTask -TaskPath "\Microsoft\Windows\LanguageComponentsInstaller" -TaskName "Uninstallation"
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International" /v "BlockCleanupOfUnusedPreinstalledLangPacks" /t REG_DWORD /d 1 /f
+
     foreach ($lang in ($languages | Where-Object { $_ -ne 'en-US' })) {
 
         if (!(Get-WindowsPackage -Online | Where-Object { $_.ReleaseType -eq "LanguagePack" -and $_.PackageName -like "*LanguagePack*$lang*" })) {
