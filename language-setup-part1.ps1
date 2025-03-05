@@ -192,7 +192,7 @@ process {
 
             foreach ($capability in $capabilities) {
 
-                if ($Capability = (Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.Name -match $capability.Split("-")[3] }).State -ne "Installed") {
+                if ((Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.Name -match $capability.Split("-")[3] }).State -ne "Installed") {
 
                     $capabilityUri = "$blob_root/$capability"
 
