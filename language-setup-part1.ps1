@@ -19,7 +19,7 @@ Param (
     [ValidateNotNullOrEmpty()]
     [string] $storageAccountName = "mcduksstoracc001",
 
-    [Parameter(Mandatory = $false, ParameterSetName = 'Restart the virtual machine')]
+    [Parameter(Mandatory = $false, HelpMessage = 'Restart the virtual machine')]
     [ValidateSet('true', 'false')]
     [string] $restart = 'true'
 )
