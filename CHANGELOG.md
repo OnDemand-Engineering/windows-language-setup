@@ -1,3 +1,9 @@
+## v0.3.1 (2025-04-08)
+
+### Fix
+
+- change parameter type for storage account name in language setup script (#8)
+
 ## v0.3.0 (2025-04-08)
 
 ### Feat
