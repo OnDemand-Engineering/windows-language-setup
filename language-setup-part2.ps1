@@ -10,7 +10,11 @@ Param (
 
     [Parameter(Mandatory = $false, HelpMessage = 'Secondary Language')]
     [ValidateNotNullOrEmpty()]
-    [String] $secondaryLanguage = "en-US"
+    [String] $secondaryLanguage = "en-US",
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Restart the virtual machine')]
+    [ValidateSet('true', 'false')]
+    [string] $restart = 'true'
 )
 
 begin {
@@ -134,8 +138,9 @@ begin {
         }
     }
 
-    $changes_made = $false
-    $reboot = $false
+    $changesMade = $false
+    $restartParam = [System.Convert]::ToBoolean($restart)
+    $restartPostInstall = $false
 }
 
 process {
@@ -144,7 +149,7 @@ process {
         try {
             Set-Culture -CultureInfo $primaryLanguage
             Write-Log -Object "LanguageSetup_Part2" -Message "Set Culture to $primaryLanguage" -Severity Information -LogPath $logPath
-            $changes_made = $true
+            $changesMade = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -162,7 +167,7 @@ process {
         try {
             Set-WinUILanguageOverride -Language $primaryLanguage
             Write-Log -Object "LanguageSetup_Part2" -Message "Set UI Language to $primaryLanguage" -Severity Information -LogPath $logPath
-            $changes_made = $true
+            $changesMade = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -180,7 +185,7 @@ process {
         try {
             Set-WinHomeLocation -GeoId $languageProperties[$primaryLanguage].GeoID
             Write-Log -Object "LanguageSetup_Part2" -Message "Set Windows Home Location to $($languageProperties[$primaryLanguage].GeoID)" -Severity Information -LogPath $logPath
-            $changes_made = $true
+            $changesMade = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -203,7 +208,7 @@ process {
             $newLanguageList[1].InputMethodTips.Add("$($languageProperties[$secondaryLanguage].InputCode)")
             Set-WinUserLanguageList -LanguageList $newLanguageList -Force
             Write-Log -Object "LanguageSetup_Part2" -Message "Set User Language List" -Severity Information -LogPath $logPath
-            $changes_made = $true
+            $changesMade = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -221,7 +226,7 @@ process {
         try {
             Set-TimeZone -Name $languageProperties[$primaryLanguage].TimeZone
             Write-Log -Object "LanguageSetup_Part2" -Message "Set TimeZone to $($languageProperties[$primaryLanguage].TimeZone)" -Severity Information -LogPath $logPath
-            $changes_made = $true
+            $changesMade = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -234,7 +239,7 @@ process {
         }
     }
 
-    if ($changes_made) {
+    if ($changesMade) {
 
         # Create XML Content
         $XML = @"
@@ -278,7 +283,7 @@ process {
         try {
             Start-Process -FilePath "$env:SYSTEMROOT\System32\Control.exe" -ArgumentList "intl.cpl, , /f:""$($file.Fullname)""" -NoNewWindow -PassThru -Wait | Out-Null
             Write-Log -Object "LanguageSetup_Part2" -Message "Copied settings to System, Welcome Screen and New Users" -Severity Information -LogPath $logPath
-            $reboot = $true
+            $restartPostInstall = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
@@ -297,7 +302,7 @@ process {
 
 end {
     # Restart Computer
-    if ($reboot) {
+    if ($restartParam -and $restartPostInstall) {
         Restart-Computer -Force
     }
 }
