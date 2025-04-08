@@ -18,7 +18,7 @@ Param (
 
     [Parameter(Mandatory = $false, HelpMessage = 'Storage account containing the install media')]
     [ValidateNotNullOrEmpty()]
-    [ParameterType] $storageAccountName = "mcduksstoracc001",
+    [string] $storageAccountName = "mcduksstoracc001",
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Restart the virtual machine')]
     [ValidateSet('true', 'false')]
