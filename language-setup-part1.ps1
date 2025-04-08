@@ -13,7 +13,6 @@ Param (
     [String] $secondaryLanguage = "en-US",
 
     [Parameter(Mandatory = $false, HelpMessage = 'Additional Language')]
-    [ValidateNotNullOrEmpty()]
     [string] $additionalLanguages,
 
     [Parameter(Mandatory = $false, HelpMessage = 'Storage account containing the install media')]
