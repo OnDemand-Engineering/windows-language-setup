@@ -14,7 +14,15 @@ Param (
 
     [Parameter(Mandatory = $false, HelpMessage = 'Additional Language')]
     [ValidateNotNullOrEmpty()]
-    [string] $additionalLanguages
+    [string] $additionalLanguages,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Storage account containing the install media')]
+    [ValidateNotNullOrEmpty()]
+    [ParameterType] $storageAccountName = "mcduksstoracc001",
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Restart the virtual machine')]
+    [ValidateSet('true', 'false')]
+    [string] $restart = 'true'
 )
 
 begin {
@@ -123,10 +131,11 @@ begin {
     else {
         $osName
     }
-    $storage_account = "https://mcduksstoracc001.blob.core.windows.net"
-    $blob_root = "$storage_account/media/windows/language_packs/$os"
+    $storageAccount = "https://$storageAccountName.blob.core.windows.net"
+    $blobRoot = "$storageAccount/media/windows/language_packs/$os"
 
-    $reboot = $false
+    $restartParam = [System.Convert]::ToBoolean($restart)
+    $restartPostInstall = $false
 }
 
 process {
@@ -140,7 +149,7 @@ process {
 
         if (!(Get-WindowsPackage -Online | Where-Object { $_.ReleaseType -eq "LanguagePack" -and $_.PackageName -like "*LanguagePack*$lang*" })) {
 
-            $languagePackUri = "$blob_root/Microsoft-Windows-$type-Language-Pack_x64_$($lang.toLower()).cab"
+            $languagePackUri = "$blobRoot/Microsoft-Windows-$type-Language-Pack_x64_$($lang.toLower()).cab"
 
             # Download Language Pack
             try {
@@ -165,7 +174,7 @@ process {
                 Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installing Language Pack" -Severity Information -LogPath $logPath
                 Add-WindowsPackage -Online -PackagePath $languagePack.FullName -NoRestart
                 Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed Language Pack" -Severity Information -LogPath $logPath
-                $reboot = $true
+                $restartPostInstall = $true
             }
             Catch {
                 $errorMessage = $_.Exception.Message
@@ -194,7 +203,7 @@ process {
 
                 if ((Get-WindowsCapability -Online | Where-Object { $_.Name -match "$lang" -and $_.Name -match $capability.Split("-")[3] }).State -ne "Installed") {
 
-                    $capabilityUri = "$blob_root/$capability"
+                    $capabilityUri = "$blobRoot/$capability"
 
                     # Download Windows Capability
                     try {
@@ -218,7 +227,7 @@ process {
                     try {
                         Add-WindowsPackage -Online -PackagePath $file.FullName -NoRestart
                         Write-Log -Object "LanguageSetup_Part1" -Message "$($lang): Installed $capability" -Severity Information -LogPath $logPath
-                        $reboot = $true
+                        $restartPostInstall = $true
                     }
                     catch {
                         $errorMessage = $_.Exception.Message
@@ -257,7 +266,7 @@ process {
 
 end {
     # Restart Computer
-    if ($reboot) {
+    if ($restartParam -and $restartPostInstall) {
         Restart-Computer -Force
     }
 }
