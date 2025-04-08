@@ -1,3 +1,9 @@
+## v0.3.3 (2025-04-08)
+
+### Fix
+
+- update help message for restart parameter in language setup scripts (#10)
+
 ## v0.3.2 (2025-04-08)
 
 ### Fix
