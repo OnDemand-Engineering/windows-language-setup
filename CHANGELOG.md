@@ -1,3 +1,9 @@
+## v0.3.0 (2025-04-08)
+
+### Feat
+
+- add parameters for storage account and restart options in language setup scripts (#7)
+
 ## v0.2.4 (2025-03-05)
 
 ### Fix
