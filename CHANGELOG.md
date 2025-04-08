@@ -1,3 +1,9 @@
+## v0.3.2 (2025-04-08)
+
+### Fix
+
+- remove unnecessary validation for additional languages parameter in language setup script (#9)
+
 ## v0.3.1 (2025-04-08)
 
 ### Fix
