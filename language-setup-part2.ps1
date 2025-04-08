@@ -12,7 +12,7 @@ Param (
     [ValidateNotNullOrEmpty()]
     [String] $secondaryLanguage = "en-US",
 
-    [Parameter(Mandatory = $false, ParameterSetName = 'Restart the virtual machine')]
+    [Parameter(Mandatory = $false, HelpMessage = 'Restart the virtual machine')]
     [ValidateSet('true', 'false')]
     [string] $restart = 'true'
 )
